@@ -340,6 +340,31 @@ func main() {
 				os.Exit(1)
 			}
 		}
+	} else if len(os.Args) == 5 && os.Args[1] == "run" && os.Args[2] == "--debug" && isJarFile(os.Args[4]) {
+		debugPort, err := extractDebugPort(os.Args[3])
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+
+		if validateDebugPort(debugPort) {
+			cmdArgs := []string{"-jar"}
+			cmdArgs = append(cmdArgs, os.Args[4:]...)
+
+			cmd := exec.Command("java", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="+strconv.Itoa(debugPort))
+			cmd.Args = append(cmd.Args, cmdArgs...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
+			err := cmd.Run()
+			if err != nil {
+				fmt.Println("Error running Java command:", err)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Println("Error: Invalid debug port number specified.")
+			os.Exit(1)
+		}
 	} else {
 		// Create the command
 		MainClass := "io.ballerina.cli.launcher.Main"
