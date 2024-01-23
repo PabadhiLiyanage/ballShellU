@@ -21,7 +21,9 @@ func main() {
 		fmt.Printf("%d: %s\n", i+1, arg)
 	}
 	ballerinaHome := "/path/to/ballerina/home"
-	javaPath := filepath.Join(ballerinaHome, "../../dependencies/jdk-17.0.7+7-jre")
+	//javaPath := filepath.Join(ballerinaHome, "../../dependencies/jdk-17.0.7+7-jre")
+	javaPath := filepath.Join(ballerinaHome, "..", "..", "dependencies", "jdk-17.0.7+7-jre")
+
 	if stat, err := os.Stat(javaPath); err == nil && stat.IsDir() {
 		javaHome := javaPath
 		// Set JAVA_HOME environment variable
@@ -37,6 +39,7 @@ func main() {
 		if javaHome == "" {
 			if javaVersion == "" {
 				// If both JAVA_HOME and JAVA_VERSION are not set, get the default Java home
+				//javaMac := path.Join(usr, libexec, javaHome)
 				javaHomeCmd, _ := exec.Command("/usr/libexec/java_home").Output()
 				javaHome = string(javaHomeCmd)
 				os.Setenv("JAVA_HOME", javaHome)
@@ -105,20 +108,6 @@ func main() {
 	// Output the result
 	fmt.Println("BALLERINA_HOME:", ballerinaHome)
 
-	// Get the directory containing the executable
-
-	//give realpath and execDir
-	//execDir = "/usr/lib/ballerina/distributions/ballerina-2201.8.4/bin"
-	//realPath = "/usr/lib/ballerina/distributions/ballerina-2201.8.4/bin/bal"
-
-	// absParentDir, err := filepath.Abs(execDir)
-	// if err != nil {
-	// 	fmt.Println("Error getting absolute path:", err)
-	// 	return
-	// }
-
-	//fmt.Println("BALLERINA_HOME:", absParentDir)
-
 	//Setting Java CMD
 
 	javaCmd := os.Getenv("JAVACMD")
@@ -160,32 +149,21 @@ func main() {
 	var ballerinaCLIWidth string
 
 	// Check if tput is available
-	tputCmd := exec.Command("type", "tput")
-	if tputCmd.Run() != nil {
-		// tput is not available, set default width
+	if !commandExists("tput") {
 		ballerinaCLIWidth = "80"
 	} else {
-		// tput is available, check if it can determine the number of columns
-		colsCmd := exec.Command("tput", "cols")
-		output, err := colsCmd.Output()
-
-		if err != nil {
-			// tput cols failed, set default width
+		if cols, err := getTerminalColumns(); err != nil {
 			ballerinaCLIWidth = "80"
 		} else {
-			// tput cols succeeded, parse the output as an integer
-			width, err := strconv.Atoi(string(output))
-			if err != nil {
-				// Failed to parse, set default width
-				ballerinaCLIWidth = "80"
-			} else {
-				// Set the width to the parsed value
-				ballerinaCLIWidth = strconv.Itoa(width)
-			}
+			ballerinaCLIWidth = strconv.Itoa(cols)
 		}
 	}
-	fmt.Println("CLI Width :", ballerinaCLIWidth)
 
+	// Export the BALLERINA_CLI_WIDTH environment variable
+	//os.Setenv("BALLERINA_CLI_WIDTH", ballerinaCLIWidth)
+
+	// Print the result for demonstration
+	fmt.Println("BALLERINA_CLI_WIDTH:", ballerinaCLIWidth)
 	//Setting Ballerina debug port
 
 	balJavaDebug := os.Getenv("BAL_JAVA_DEBUG")
@@ -271,43 +249,28 @@ func main() {
 		}
 	}
 
-	//fmt.Println("BALLERINA_CLASSPATH:", ballerinaClasspath)
-	//jarFilePath := "/usr/lib/ballerina/distributions/ballerina-2201.8.4/bre/lib/ballerina-cli-2201.8.4.jar"
-
-	// if ballerinaClasspath != "" {
-	// 	classpathEntries := strings.Split(ballerinaClasspath, string(filepath.ListSeparator))
-	// 	for _, entry := range classpathEntries {
-	// 		if entry == jarFilePath {
-	// 			fmt.Printf("The JAR file '%s' is in BALLERINA_CLASSPATH.\n", jarFilePath)
-	// 			return
-	// 		}
-	// 	}
-	// }
-
-	// fmt.Printf("The JAR file '%s' is not in BALLERINA_CLASSPATH.\n", jarFilePath)
-
 	//Define Ballerina CLI Arguments
-	cmdArgs := []string{
+	cmdLineArgs := []string{
 		"-Xms256m", "-Xmx1024m",
+		"-XX:+HeapDumpOnOutOfMemoryError",
 		"-classpath", ballerinaClasspath,
 		"-Dballerina.home=" + ballerinaHome,
+		"-Dballerina.version=2201.8.4",
 		"-Denable.nonblocking=false",
 		"-Djava.security.egd=file:/dev/./urandom",
 		"-Dfile.encoding=UTF8",
 		"-Dballerina.target=jvm",
 		"-Djava.command=" + javaCmd,
 	}
-	//fmt.Println(cmdArgs)
-	//Implementing the running method for bal
-	cmdArgs = append(cmdArgs, os.Args[1:]...)
 	fmt.Println("length", len(os.Args))
-
-	//Implementation of bal run --debug=<PORT> <*.jar>
-	// handles "bal run --debug <PORT> <JAR_PATH>" command
 	//Implementation of bal run <*.jar>
-	if len(os.Args) == 3 && os.Args[1] == "run" && isJarFile(os.Args[2]) {
-		jarFilePath := os.Args[2]
-		cmd := exec.Command("java", "-jar", jarFilePath)
+	if os.Args[1] == "run" && isJarFile(os.Args[2]) {
+		//jarFilePath := os.Args[2]
+		cmdArgs := append(cmdLineArgs, "-jar")
+		cmdArgs = append(cmdArgs, os.Args[2:]...)
+
+		// Execute the command
+		cmd := exec.Command(javaCmd, cmdArgs...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -316,19 +279,22 @@ func main() {
 		if err != nil {
 			fmt.Println("Error running bal run jar command:", err)
 			os.Exit(1)
-		} //&& os.Args[2][:8] == "--debug="
+		}
 	} else if len(os.Args) == 4 && os.Args[1] == "run" && isJarFile(os.Args[3]) && os.Args[2][:8] == "--debug=" {
-		debugPort, err := extractDebugPort(os.Args[2])
+		debugPort, err := extractDebugPort(os.Args[2]) //Implementation of bal run --debug=<PORT> <*.jar>
 		if err != nil {
 			fmt.Println("Error: Invalid debug port number specified.")
 			os.Exit(1)
 		}
 		fmt.Println(debugPort)
 		if validateDebugPort(debugPort) {
-			cmdArgs := []string{"-jar"}
-			cmdArgs = append(cmdArgs, os.Args[3:]...)
 
-			cmd := exec.Command("java", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="+strconv.Itoa(debugPort))
+			cmdArgs := append(cmdLineArgs,
+				"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="+strconv.Itoa(debugPort),
+				"-jar",
+				os.Args[3],
+			)
+			cmd := exec.Command(javaCmd, cmdLineArgs...)
 			cmd.Args = append(cmd.Args, cmdArgs...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -340,18 +306,18 @@ func main() {
 			}
 		}
 	} else if len(os.Args) == 5 && os.Args[1] == "run" && os.Args[2] == "--debug" && isJarFile(os.Args[4]) {
-		debugPort, err := strconv.Atoi(os.Args[3])
+		debugPort, err := strconv.Atoi(os.Args[3]) // handles "bal run --debug <PORT> <JAR_PATH>" command
 		if err != nil {
 			fmt.Println("Error:", err)
 			os.Exit(1)
 		}
 
 		if validateDebugPort(debugPort) {
-			cmdArgs := []string{"-jar"}
+			cmdArgs := append(cmdLineArgs,
+				"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="+strconv.Itoa(debugPort),
+				"-jar")
 			cmdArgs = append(cmdArgs, os.Args[4:]...)
-
-			cmd := exec.Command("java", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address="+strconv.Itoa(debugPort))
-			cmd.Args = append(cmd.Args, cmdArgs...)
+			cmd := exec.Command(javaCmd, cmdArgs...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 
@@ -365,15 +331,11 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		// Create the command
-		MainClass := "io.ballerina.cli.launcher.Main"
-		//Args := append([]string{"-cp", ballerinaClasspath, MainClass}, os.Args[1:]...)
-		//cmd := exec.Command("java", Args...)
-		cmd := exec.Command("java", "-cp", ballerinaClasspath, MainClass)
 
-		// Append user-provided arguments to cmd.Args
-		cmd.Args = append(cmd.Args, os.Args[1:]...)
-
+		cmdArgs := append(cmdLineArgs, "io.ballerina.cli.launcher.Main")
+		cmdArgs = append(cmdArgs, os.Args[1:]...)
+		// Execute the command
+		cmd := exec.Command(javaCmd, cmdArgs...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Run()
@@ -385,7 +347,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	///home/pabadhi/myGoProjects/sample2/app/build/libs/app.jar
+	//         /home/pabadhi/myGoProjects/sample2/app/build/libs/app.jar
 
 }
 
@@ -401,6 +363,25 @@ func extractDebugPort(debugArg string) (int, error) {
 	}
 
 	return strconv.Atoi(matches[1])
+}
+func commandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
+}
+
+func getTerminalColumns() (int, error) {
+	cmd := exec.Command("tput", "cols")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+
+	cols, err := strconv.Atoi(string(output))
+	if err != nil {
+		return 0, err
+	}
+
+	return cols, nil
 }
 
 func validateDebugPort(port int) bool {
