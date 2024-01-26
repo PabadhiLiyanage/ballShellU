@@ -343,7 +343,7 @@ func main() {
 		// Run the command
 
 		if err != nil {
-			fmt.Println("Error running Java command:", err)
+			fmt.Println("Error running command:", err)
 			os.Exit(1)
 		}
 	}
