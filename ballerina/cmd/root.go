@@ -12,19 +12,8 @@ import (
 	//"github.com/spf13/cobra"
 )
 
-// rootCmd represents the base command when called without any subcommands
-//var rootCmd = &cobra.Command{}
-
 func Execute() {
-	args := os.Args
-
-	// Print other command-line arguments
-	fmt.Println("Command-line arguments:")
-	for i, arg := range args[0:] {
-		fmt.Printf("%d: %s\n", i+1, arg)
-	}
 	ballerinaHome := "/path/to/ballerina/home"
-	//javaPath := filepath.Join(ballerinaHome, "../../dependencies/jdk-17.0.7+7-jre")
 	javaPath := filepath.Join(ballerinaHome, "..", "..", "dependencies", "jdk-17.0.7+7-jre")
 
 	if stat, err := os.Stat(javaPath); err == nil && stat.IsDir() {
@@ -32,7 +21,7 @@ func Execute() {
 		// Set JAVA_HOME environment variable
 		os.Setenv("JAVA_HOME", javaHome)
 	}
-	fmt.Println(runtime.GOOS)
+	//fmt.Println(runtime.GOOS)
 	var cygwin, mingw, os400, darwin bool
 	switch runtime.GOOS {
 	case "darwin":
@@ -41,8 +30,6 @@ func Execute() {
 		javaVersion := os.Getenv("JAVA_VERSION")
 		if javaHome == "" {
 			if javaVersion == "" {
-				// If both JAVA_HOME and JAVA_VERSION are not set, get the default Java home
-				//javaMac := path.Join(usr, libexec, javaHome)
 				javaHomeCmd, _ := exec.Command("/usr/libexec/java_home").Output()
 				javaHome = string(javaHomeCmd)
 				os.Setenv("JAVA_HOME", javaHome)
@@ -64,18 +51,13 @@ func Execute() {
 	}
 
 	if _, ok := os.LookupEnv("CYGWIN"); ok {
-		cygwin = true // Running in Cygwin environment
+		cygwin = true
 	}
 
 	if _, ok := os.LookupEnv("MINGW"); ok {
-		mingw = true // Running in MinGW environment
+		mingw = true
 	}
-
-	fmt.Println("Cygwin:", cygwin)
-	fmt.Println("MinGW:", mingw)
-	fmt.Println("OS400:", os400)
-	fmt.Println("Darwin:", darwin)
-
+	fmt.Println(cygwin, mingw, os400, darwin)
 	prg, err := os.Executable()
 	prg = "/usr/lib/ballerina/distributions/ballerina-2201.8.4/bin/bal"
 	if err != nil {
@@ -83,7 +65,6 @@ func Execute() {
 		return
 	}
 
-	// Resolve symbolic links
 	for {
 		link, err := filepath.EvalSymlinks(prg)
 		if err != nil {
@@ -107,30 +88,16 @@ func Execute() {
 		fmt.Println("Error getting absolute path:", err)
 		return
 	}
-
-	// Output the result
-	fmt.Println("BALLERINA_HOME:", ballerinaHome)
-
-	//Setting Java CMD
-
 	javaCmd := os.Getenv("JAVACMD")
 	javaHome := os.Getenv("JAVA_HOME")
-	//fmt.Println("JavaCmD= ", javaCmd)
-
 	if javaCmd == "" {
 		if javaHome != "" {
-			// If JAVA_HOME is set, determine the appropriate JAVACMD
 			var javacmdPath string
-
-			// Check if the specified Java home is for IBM's JDK on AIX
 			if _, err := os.Stat(filepath.Join(javaHome, "jre", "sh", "java")); err == nil {
 				javacmdPath = filepath.Join(javaHome, "jre", "sh", "java")
 			} else {
-				// Use the standard Java executable path
 				javacmdPath = filepath.Join(javaHome, "bin", "java")
 			}
-
-			// Check if the determined JAVACMD path is executable
 			if _, err := os.Stat(javacmdPath); err == nil {
 				javaCmd = javacmdPath
 			} else {
@@ -138,17 +105,11 @@ func Execute() {
 				os.Exit(1)
 			}
 		} else {
-			// If neither JAVACMD nor JAVA_HOME is set, use the default 'java' command
 			javaCmd = "java"
 		}
 	}
 
 	javaCmd = strings.TrimSpace(javaCmd)
-
-	//fmt.Printf("JAVACMD: %s\n", javaCmd)
-	//fmt.Printf("JAVAHOME: %s\n", javaHome)
-
-	//assign value to ballerinaCliWidth
 	var ballerinaCLIWidth string
 
 	// Check if tput is available
@@ -161,14 +122,8 @@ func Execute() {
 			ballerinaCLIWidth = strconv.Itoa(cols)
 		}
 	}
-
-	// Export the BALLERINA_CLI_WIDTH environment variable
-	//os.Setenv("BALLERINA_CLI_WIDTH", ballerinaCLIWidth)
-
-	// Print the result for demonstration
-	fmt.Println("BALLERINA_CLI_WIDTH:", ballerinaCLIWidth)
+	fmt.Println(ballerinaCLIWidth)
 	//Setting Ballerina debug port
-
 	balJavaDebug := os.Getenv("BAL_JAVA_DEBUG")
 	javaOpts := ""
 	if balJavaDebug != "" {
@@ -197,33 +152,7 @@ func Execute() {
 	} else {
 		fmt.Println("BAL_JAVA_DEBUG is not set")
 	}
-	//Ballerina jarpath setting
-	//ballerinaHome = "/usr/lib/ballerina/distributions/ballerina-2201.8.4"
 	jarPath := filepath.Join(ballerinaHome, "bre", "lib")
-	var ballerinaJarPath string
-
-	// Get a list of all JAR files in the jarPath directory
-	files, err := filepath.Glob(filepath.Join(jarPath, "*.jar"))
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
-	}
-	pattern := filepath.Join(ballerinaHome, "bre", "lib", "*.jar")
-
-	// Iterate over the JAR files
-	for _, f := range files {
-		matched, err := filepath.Match(pattern, f)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-		if !matched {
-			ballerinaJarPath += ":" + f
-		}
-	}
-
-	//fmt.Printf("BALLERINA_JARPATH: %s\n", ballerinaJarPath)
-
 	//Ballerina Classpath Setting
 	var ballerinaClasspath string
 	toolsJarPath := filepath.Join(ballerinaHome, "bre", "lib", "tools.jar")
@@ -279,11 +208,8 @@ func Execute() {
 	}
 	//Implementation of bal run <*.jar>
 	if len(os.Args) >= 3 && os.Args[1] == "run" && isJarFile(os.Args[2]) {
-		//jarFilePath := os.Args[2]
 		cmdArgs := append(cmdLineArgs, "-jar")
 		cmdArgs = append(cmdArgs, os.Args[2:]...)
-
-		// Execute the command
 		cmd := exec.Command(javaCmd, cmdArgs...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -353,13 +279,11 @@ func Execute() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Run()
-		os.Exit(0)
-		// Run the command
-
 		if err != nil {
 			fmt.Println("Error running else command:", err)
 			os.Exit(1)
 		}
+		os.Exit(0)
 	}
 	//         /home/pabadhi/myGoProjects/sample2/app/build/libs/app.jar
 
@@ -400,7 +324,4 @@ func getTerminalColumns() (int, error) {
 
 func validateDebugPort(port int) bool {
 	return port > 0
-}
-
-func init() {
 }

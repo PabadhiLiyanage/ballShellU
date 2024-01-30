@@ -22,7 +22,7 @@ func main() {
 
 	switch osType := runtime.GOOS; osType {
 	case "darwin":
-		// path set
+		// path is already set
 	default:
 		scriptDir, err = filepath.EvalSymlinks(scriptDir)
 		if err != nil {
@@ -70,11 +70,9 @@ func main() {
 			fmt.Println("Completion scripts not found")
 		}
 	}
-	//
 	fmt.Println("area1")
 	runCommand := false
 	runBallerina := true
-	fmt.Println(len(os.Args))
 	if len(os.Args) > 1 {
 		if os.Args[1] == "dist" || os.Args[1] == "update" || (os.Args[1] == "dist" && os.Args[2] == "update") {
 			runCommand = true
@@ -124,7 +122,13 @@ func main() {
 					if err != nil {
 						fmt.Println("Update failed due to errors")
 						_ = os.RemoveAll(tmpDir)
-						os.Exit(1)
+						if exitErr, ok := err.(*exec.ExitError); ok {
+							os.Exit(exitErr.ExitCode())
+						} else {
+							fmt.Println("Error running jar file: ", err)
+							os.Exit(1)
+						}
+
 					}
 					_ = os.RemoveAll(tmpDir)
 
@@ -182,13 +186,17 @@ func main() {
 				executeCommand(ballerinaPath, os.Args[1:])
 			} else {
 				fmt.Println("Distribution does not exist, use 'bal dist pull <version>'")
-				os.Exit(1)
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					os.Exit(exitErr.ExitCode())
+				} else {
+					os.Exit(1)
+				}
 			}
 		}
 		fmt.Println("Return from section C")
 		if len(os.Args) > 1 {
 
-			if os.Args[1] == "help" || os.Args[1] == "" || os.Args[1] == "-h" || os.Args[1] == "--help" ||
+			if os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" ||
 				os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--version" || (os.Args[1] == "help" && os.Args[2] == "") {
 				fmt.Println("last Part")
 				javaCommand := "java"
@@ -197,8 +205,6 @@ func main() {
 				cmd.Args = append(cmd.Args, os.Args[1:]...)
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
-
-				// Run the command and exit with its exit code
 				if err := cmd.Run(); err != nil {
 					if exitErr, ok := err.(*exec.ExitError); ok {
 						os.Exit(exitErr.ExitCode())
@@ -208,11 +214,26 @@ func main() {
 					}
 				}
 			}
+		} else if len(os.Args) == 1 {
+			javaCommand := "java"
+			jarFilePath := filepath.Join(scriptDir, "..", "lib", "ballerina-command-1.4.2.jar")
+			cmd := exec.Command(javaCommand, "-jar", jarFilePath)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					os.Exit(exitErr.ExitCode())
+				} else {
+					fmt.Println("Error running jar file: ", err)
+					os.Exit(1)
+				}
+			}
 		} else {
-			exitCode := 5
+			exitCode := 5 //take exit code from others
 			fmt.Println("Exiting with code:", exitCode)
 			os.Exit(exitCode)
 		}
+		os.Exit(0)
 	}
 }
 
