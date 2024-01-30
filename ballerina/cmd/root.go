@@ -353,7 +353,7 @@ func Execute() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Run()
-
+		os.Exit(0)
 		// Run the command
 
 		if err != nil {

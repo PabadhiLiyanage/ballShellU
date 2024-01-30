@@ -16,7 +16,6 @@ func main() {
 		fmt.Println("Error getting script path:", err)
 		os.Exit(1)
 	}
-
 	javaCommand := "java"
 	scriptPath = "/usr/lib/ballerina/bin/bal"
 	scriptDir := filepath.Dir(scriptPath)
@@ -173,7 +172,7 @@ func main() {
 		balPath := filepath.Join(ballerinaHome, "bin", "bal")
 		ballerinaPath := filepath.Join(ballerinaHome, "bin", "ballerina")
 		fmt.Println("Bal path", balPath)
-		//fmt.Println(os.Stat(balPath))
+		fmt.Println("section C")
 		balPath = "/home/pabadhi/go/bin/ball"
 		if _, err := os.Stat(balPath); err == nil {
 			executeCommand(balPath, os.Args[1:])
@@ -186,17 +185,14 @@ func main() {
 				os.Exit(1)
 			}
 		}
-
-		if len(os.Args) > 2 {
+		fmt.Println("Return from section C")
+		if len(os.Args) > 1 {
 
 			if os.Args[1] == "help" || os.Args[1] == "" || os.Args[1] == "-h" || os.Args[1] == "--help" ||
 				os.Args[1] == "version" || os.Args[1] == "-v" || os.Args[1] == "--version" || (os.Args[1] == "help" && os.Args[2] == "") {
-
+				fmt.Println("last Part")
 				javaCommand := "java"
-
 				jarFilePath := filepath.Join(scriptDir, "..", "lib", "ballerina-command-1.4.2.jar")
-				///../lib/ballerina-command-1.4.2.jar
-				// Execute the Java command with the JAR file and the original command line arguments
 				cmd := exec.Command(javaCommand, "-jar", jarFilePath)
 				cmd.Args = append(cmd.Args, os.Args[1:]...)
 				cmd.Stdout = os.Stdout
@@ -213,7 +209,7 @@ func main() {
 				}
 			}
 		} else {
-			exitCode := 42
+			exitCode := 5
 			fmt.Println("Exiting with code:", exitCode)
 			os.Exit(exitCode)
 		}
@@ -243,17 +239,11 @@ func checkDirectoryExists(dirPath string) bool {
 
 func executeCommand(commandPath string, args []string) {
 	cmd := exec.Command(commandPath, args...)
-
-	// Set Stdout only when there are arguments
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	// Run the command
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println("Error executing command:", err)
 		os.Exit(1)
 	}
-
-	os.Exit(0)
 }
