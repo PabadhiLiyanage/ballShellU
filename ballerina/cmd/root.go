@@ -13,15 +13,16 @@ import (
 )
 
 func Execute() {
-	ballerinaHome := "/path/to/ballerina/home"
+	ballerinaHome := os.Getenv("BALLERINA_HOME")
 	javaPath := filepath.Join(ballerinaHome, "..", "..", "dependencies", "jdk-17.0.7+7-jre")
+	javaCmd := os.Getenv("JAVACMD")
+	javaHome := os.Getenv("JAVA_HOME")
 
 	if stat, err := os.Stat(javaPath); err == nil && stat.IsDir() {
 		javaHome := javaPath
-		// Set JAVA_HOME environment variable
 		os.Setenv("JAVA_HOME", javaHome)
 	}
-	//fmt.Println(runtime.GOOS)
+	fmt.Println("Javahome", javaHome)
 	var cygwin, mingw, os400, darwin bool
 	switch runtime.GOOS {
 	case "darwin":
@@ -59,7 +60,7 @@ func Execute() {
 	}
 	fmt.Println(cygwin, mingw, os400, darwin)
 	prg, err := os.Executable()
-	prg = "/usr/lib/ballerina/distributions/ballerina-2201.8.4/bin/bal"
+	//prg = "/usr/lib/ballerina/distributions/ballerina-2201.8.4/bin/bal"
 	if err != nil {
 		fmt.Println("Error getting executable path:", err)
 		return
@@ -88,8 +89,6 @@ func Execute() {
 		fmt.Println("Error getting absolute path:", err)
 		return
 	}
-	javaCmd := os.Getenv("JAVACMD")
-	javaHome := os.Getenv("JAVA_HOME")
 	if javaCmd == "" {
 		if javaHome != "" {
 			var javacmdPath string
@@ -122,6 +121,7 @@ func Execute() {
 			ballerinaCLIWidth = strconv.Itoa(cols)
 		}
 	}
+	os.Setenv("BALLERINA_CLI_WIDTH", ballerinaCLIWidth)
 	fmt.Println(ballerinaCLIWidth)
 	//Setting Ballerina debug port
 	balJavaDebug := os.Getenv("BAL_JAVA_DEBUG")
